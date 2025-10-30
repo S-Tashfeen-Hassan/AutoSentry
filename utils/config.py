@@ -1,5 +1,5 @@
 # utils/config.py
-OLLAMA_BASE = "https://sequence-bow-enhancement-output.trycloudflare.com"  # << your tunnel URL
+OLLAMA_BASE = "http://100.95.184.60:11434"  
 LLM_MODEL = "phi3:mini"
 LOCAL_LOG_PATH = "data/logs.ndjson"
 
@@ -12,4 +12,4 @@ RBF_CONN_COUNT_THRESHOLD = 50
 RBF_PKTS_THRESHOLD = 100
 RBF_BYTES_THRESHOLD = 100_000
 SCORE_THRESHOLD_SUSPICIOUS = 0.2
-LLM_TIMEOUT = 60  # seconds
+LLM_TIMEOUT = 600  # seconds

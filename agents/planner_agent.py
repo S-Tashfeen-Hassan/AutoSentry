@@ -27,8 +27,7 @@ class PlannerAgent:
                     try:
                         logs.append(json.loads(line))
                     except Exception:
-                        # try to skip broken lines
-                        continue
+                        continue  # skip malformed lines
         except FileNotFoundError:
             return []
         return logs
@@ -37,12 +36,14 @@ class PlannerAgent:
         score = 0.0
         matched = []
         text = json.dumps(log).lower()
-        # keywords
+
+        # --- 1️⃣ Keyword-based heuristic ---
         for kw in RBF_KEYWORDS:
             if kw in text:
                 score += 0.25
                 matched.append(f"keyword:{kw}")
-        # conn/packet/bytes heuristics
+
+        # --- 2️⃣ Packet/byte volume heuristic ---
         conn_like = log.get("conn_count") or log.get("flow_pkts_toserver") or log.get("flow_pkts_toclient") or 0
         try:
             conn_like = int(conn_like)
@@ -51,6 +52,7 @@ class PlannerAgent:
         if conn_like > RBF_PKTS_THRESHOLD:
             score += 0.3
             matched.append("high_pkts_conn")
+
         bytes_like = log.get("flow_bytes_toserver") or log.get("flow_bytes_toclient") or 0
         try:
             bytes_like = int(bytes_like)
@@ -59,41 +61,64 @@ class PlannerAgent:
         if bytes_like > RBF_BYTES_THRESHOLD:
             score += 0.2
             matched.append("high_bytes")
-        # alert signature check
+
+        # --- 3️⃣ Signature heuristic ---
         sig = (log.get("alert_signature") or log.get("alert_signature_id") or "").lower()
         if "compression bomb" in sig or "compression" in sig:
             score += 0.6
             matched.append("high_risk_signature")
-        # clamp
+
+        # --- 4️⃣ Suricata Alert heuristic (NEW) ---
+        event_type = (log.get("event_type") or "").lower()
+        if event_type == "alert":
+            score += 0.5
+            matched.append("event_type:alert")
+
+        # --- Clamp score ---
         score = min(score, 1.0)
+
+        # --- Verdict decision ---
         verdict = "benign"
         if score >= SCORE_THRESHOLD_SUSPICIOUS:
             verdict = "suspicious"
         elif score >= 0.3:
             verdict = "monitor"
+
         return {"score": score, "matched_rules": matched, "verdict": verdict}
 
     def process_log(self, log: Dict[str, Any]) -> Dict[str, Any]:
         trace = {"log_id": log.get("_id") or log.get("flow_id"), "planner": {}, "detection": None, "response": None}
+
+        # --- Run rule-based check ---
         rbf = self.rule_based_check(log)
         trace["planner"] = rbf
-        # Persist intermediate trace
+
+        # Save intermediate state
         self.state.add_trace(trace)
-        # If benign -> mark and return
-        if rbf["verdict"] == "benign":
+
+        # --- Pass all suspicious OR Suricata alerts to DetectionAgent ---
+        event_type = (log.get("event_type") or "").lower()
+        if rbf["verdict"] == "benign" and event_type != "alert":
             trace["detection"] = {"verdict": "skipped", "reason": "rule_based_benign"}
             log_trace(trace)
             return trace
-        # If suspicious or monitor -> call detection agent
+
+        # --- If suspicious or alert, run DetectionAgent ---
         detection_result = self.detector.analyze(log)
         trace["detection"] = detection_result
-        # If detection says malicious -> call response
+
+        # --- If malicious → trigger ResponseAgent ---
         if detection_result.get("verdict") == "malicious":
-            action = self.responder.execute_action(log, action_type=detection_result.get("recommended_action", "block_ip"), reason="auto-detected")
+            action = self.responder.execute_action(
+                log,
+                action_type=detection_result.get("recommended_action", "block_ip"),
+                reason="auto-detected"
+            )
             trace["response"] = action
         else:
             trace["response"] = None
-        # write trace to disk
+
+        # --- Persist final trace ---
         log_trace(trace)
         self.state.add_trace(trace)
         return trace

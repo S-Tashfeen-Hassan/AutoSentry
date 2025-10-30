@@ -35,7 +35,8 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-placeholder = st.container()
+# ✅ Use a persistent placeholder to re-render cleanly
+placeholder = st.empty()
 
 # -------------------------------
 # Helper to read new lines
@@ -64,16 +65,9 @@ def read_new_lines():
 
 
 # -------------------------------
-# Color utilities with combined logic
+# Color + icon utilities
 # -------------------------------
 def combined_verdict_color(planner_verdict: str, detection_verdict: str) -> str:
-    """
-    Color logic:
-      - Planner suspicious + Detection malicious  → Red (malicious)
-      - Planner suspicious + Detection benign     → Yellow (false positive)
-      - Planner benign → Green
-      - Otherwise → Gray
-    """
     if planner_verdict == "suspicious" and detection_verdict == "malicious":
         return "#ff4b4b"  # Red
     elif planner_verdict == "suspicious" and detection_verdict == "benign":
@@ -103,15 +97,20 @@ def combined_icon(planner_verdict: str, detection_verdict: str) -> str:
 # Rendering function
 # -------------------------------
 def render_dashboard():
-    results = st.session_state.results
-    with placeholder:
+    """Re-render dashboard cleanly inside the placeholder"""
+    with placeholder.container():  # ✅ clears previous view automatically
+        results = st.session_state.results
+
         if not results:
             st.info("Waiting for logs to arrive...")
             return
 
-        st.write(f"Showing last {min(50, len(results))} entries")
+        st.markdown(
+            f"<p style='font-size:14px; color:gray;'>Showing last {min(50, len(results))} entries</p>",
+            unsafe_allow_html=True
+        )
 
-        for r in reversed(results[-50:]):  # show last 50
+        for r in reversed(results[-50:]):  # show last 50 only
             planner = r.get("planner", {})
             detection = r.get("detection", {})
             response = r.get("response", {})
@@ -158,7 +157,7 @@ def render_dashboard():
 # -------------------------------
 # Live polling loop
 # -------------------------------
-st.toast("Live monitoring started")
+st.toast("🚀 Live monitoring started")
 
 while True:
     new_logs = read_new_lines()
@@ -170,6 +169,6 @@ while True:
             st.session_state.results.append(log)
 
         render_dashboard()
-        st.toast(f"{len(new_logs)} new logs received")
+        st.toast(f"🆕 {len(new_logs)} new logs received")
 
-    time.sleep(1)  # check every second
+    time.sleep(1)
