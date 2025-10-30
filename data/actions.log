@@ -1,0 +1,4 @@
+{"agent": "ResponseAgent", "action": "block_ip", "target": "203.0.113.44", "log_id": null, "reason": "auto-detected", "time": "2025-10-30T11:35:19.103118Z", "status": "simulated", "logged_at": "2025-10-30T11:35:19.103128Z"}
+{"agent": "ResponseAgent", "action": "block_ip", "target": "10.0.0.9", "log_id": null, "reason": "auto-detected", "time": "2025-10-30T11:35:32.898153Z", "status": "simulated", "logged_at": "2025-10-30T11:35:32.898177Z"}
+{"agent": "ResponseAgent", "action": "monitor", "target": "192.168.56.44", "log_id": null, "reason": "auto-detected", "time": "2025-10-30T11:35:48.191901Z", "status": "simulated", "logged_at": "2025-10-30T11:35:48.191913Z"}
+{"agent": "ResponseAgent", "action": "block_ip", "target": "203.0.113.99", "log_id": null, "reason": "auto-detected", "time": "2025-10-30T11:36:03.942642Z", "status": "simulated", "logged_at": "2025-10-30T11:36:03.942661Z"}
