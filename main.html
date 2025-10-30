@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<body>
+<h3>phi3:mini Chat</h3>
+<textarea id="output" rows="10" cols="50" readonly></textarea><br>
+<input id="input" type="text" size="50">
+<button onclick="sendPrompt()">Send</button>
+
+<script>
+async function sendPrompt() {
+    const prompt = document.getElementById('input').value;
+    const url = "https://cors-anywhere.herokuapp.com/https://partially-gear-journalism-ice.trycloudflare.com/api/generate";
+    const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: "phi3:mini", prompt })
+    });
+    const data = await res.json();
+    document.getElementById('output').value += "\nYou: " + prompt + "\nBot: " + data.response + "\n";
+    document.getElementById('input').value = '';
+}
+</script>
+</body>
+</html>

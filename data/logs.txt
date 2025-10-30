@@ -1,0 +1,15 @@
+{"message": "SSH failed_login attempt from 192.168.1.10", "source_ip": "192.168.1.10", "conn_count": 10}
+{"message": "Normal HTTP request to /index.html from 192.168.1.25", "source_ip": "192.168.1.25", "conn_count": 1}
+{"message": "Detected DNS_tunnel activity from 10.0.0.7", "source_ip": "10.0.0.7", "conn_count": 5}
+{"message": "Multiple failed_login and bruteforce pattern from 203.0.113.5", "source_ip": "203.0.113.5", "conn_count": 120}
+{"message": "File upload authorized by admin", "source_ip": "192.168.1.12", "conn_count": 2}
+{"message": "Unauthorized access attempt detected from 172.16.0.8", "source_ip": "172.16.0.8", "conn_count": 25}
+{"message": "High volume of ICMP packets from 10.0.0.22", "source_ip": "10.0.0.22", "conn_count": 200}
+{"message": "User admin logged in successfully from 192.168.1.30", "source_ip": "192.168.1.30", "conn_count": 3}
+{"message": "Repeated SSH failed login from 172.16.5.44", "source_ip": "172.16.5.44", "conn_count": 60}
+{"message": "HTTP POST upload to /api/upload from 192.168.2.5", "source_ip": "192.168.2.5", "conn_count": 4}
+{"message": "Suspicious port scanning detected from 10.10.10.9", "source_ip": "10.10.10.9", "conn_count": 85}
+{"message": "FTP connection attempt failed due to incorrect password from 192.168.3.7", "source_ip": "192.168.3.7", "conn_count": 6}
+{"message": "Email sent successfully via SMTP from 192.168.1.50", "source_ip": "192.168.1.50", "conn_count": 2}
+{"message": "Malicious payload upload detected on web server from 198.51.100.14", "source_ip": "198.51.100.14", "conn_count": 95}
+{"message": "Normal DNS query from 192.168.4.20", "source_ip": "192.168.4.20", "conn_count": 1}
