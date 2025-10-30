@@ -1,107 +1,103 @@
-# frontend/streamlit_app.py
 import streamlit as st
 import json
 import os
-from datetime import datetime
 import time
-
-from agents.planner_agent import PlannerAgent
-from agents.detection_agent import DetectionAgent
-from agents.response_agent import ResponseAgent
+from datetime import datetime, timezone
 from core.graph import AgentGraph
 
-# ------------------------------
-# SETUP
-# ------------------------------
-st.set_page_config(page_title="AgenticNDR Dashboard", layout="wide")
+TRACE_LOG_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data", "traces.log"))
 
-LOG_FILE = "data/logs.ndjson"
+st.set_page_config(page_title="Agentic NDR Dashboard", layout="wide")
 
-# Initialize agents
+# -------------------------------
+# Init session state
+# -------------------------------
 if "graph" not in st.session_state:
-    detector = DetectionAgent()
-    responder = ResponseAgent()
-    planner = PlannerAgent(detector, responder)
-    st.session_state.graph = AgentGraph(planner, detector, responder)
-    st.session_state.results = []  # holds processed log results
+    st.session_state.graph = AgentGraph()
+if "results" not in st.session_state:
+    st.session_state.results = []
+if "last_pos" not in st.session_state:
+    st.session_state.last_pos = 0  # pointer for reading file incrementally
 
 graph = st.session_state.graph
 
-# ------------------------------
-# HELPER: load next log(s)
-# ------------------------------
-def load_logs(filepath=LOG_FILE, max_logs=1):
-    logs = []
-    if os.path.exists(filepath):
-        with open(filepath, "r") as f:
-            for line in f:
-                if line.strip():
-                    try:
-                        logs.append(json.loads(line))
-                    except Exception:
-                        pass
-    return logs[:max_logs]
+st.title("🛰️ Agentic NDR - Live Detection & Response Dashboard")
+st.caption("Logs stream in from the planner → detection → response pipeline (real-time).")
 
-# ------------------------------
-# SIDEBAR CONTROLS
-# ------------------------------
-st.sidebar.header("Controls")
-if st.sidebar.button("🔄 Process Next Log"):
-    new_logs = load_logs(LOG_FILE, max_logs=1)
-    for log in new_logs:
-        result = graph.process_log(log)
-        result["processed_at"] = datetime.utcnow().isoformat()
-        st.session_state.results.insert(0, result)
+placeholder = st.empty()
 
-if st.sidebar.button("🧹 Clear Results"):
-    st.session_state.results = []
+# -------------------------------
+# Helper to read new lines
+# -------------------------------
+def read_new_lines():
+    path = TRACE_LOG_PATH
+    if not os.path.exists(path):
+        return []
 
-st.sidebar.markdown("---")
-st.sidebar.write("Logs processed:", len(st.session_state.results))
+    new_entries = []
+    with open(path, "r", encoding="utf-8") as f:
+        f.seek(st.session_state.last_pos)
+        lines = f.readlines()
+        st.session_state.last_pos = f.tell()
 
-# ------------------------------
-# MAIN UI
-# ------------------------------
-st.title("🧠 AgenticNDR: Autonomous Network Defense Dashboard")
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            new_entries.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
 
-if not st.session_state.results:
-    st.info("Click **Process Next Log** to analyze new data.")
-else:
-    for result in st.session_state.results:
-        log_id = result.get("log_id", "unknown")
-        planner = result.get("planner", {})
-        detection = result.get("detection", {})
-        response = result.get("response", None)
+    return new_entries
 
-        verdict = planner.get("verdict", "unknown").capitalize()
-        color = "🟢" if verdict == "Benign" else ("🟠" if verdict == "Suspicious" else "🔴")
 
-        with st.expander(f"{color} Log {log_id} — {verdict}"):
-            st.json(result, expanded=False)
+# -------------------------------
+# Rendering function
+# -------------------------------
+def render_dashboard():
+    results = st.session_state.results
+    with placeholder.container():
+        if not results:
+            st.info("Waiting for logs to arrive...")
+            return
 
-            # Planner summary
-            st.markdown(f"**Planner Verdict:** `{verdict}`  \n"
-                        f"Matched Rules: `{planner.get('matched_rules', [])}`  \n"
-                        f"Score: `{planner.get('score')}`")
+        st.markdown("### 📊 Live Logs Feed")
+        for r in reversed(results[-50:]):  # show last 50 only
+            verdict = r.get("planner", {}).get("verdict", "unknown")
+            detection = r.get("detection", {}).get("verdict", "pending")
+            response = r.get("response", {})
 
-            # Detection summary
-            if detection:
-                st.markdown(f"**Detection Verdict:** `{detection.get('verdict')}`  \n"
-                            f"Score: `{detection.get('score')}`  \n"
-                            f"Reasons: `{detection.get('reasons', [])}`")
+            color_icon = {
+                "benign": "✅",
+                "suspicious": "🟡",
+                "malicious": "🚨",
+                "uncertain": "⚪",
+                "unknown": "⚪",
+            }.get(verdict, "⚪")
 
-            # Response summary
-            if response:
-                st.success(f"✅ Action Executed: {response.get('action')} → {response.get('target')}")
-            else:
-                st.info("No response action triggered.")
+            st.markdown(
+                f"#### {color_icon} `{r.get('log_id', 'unknown')}` — Verdict: `{verdict}` → Detection: `{detection}`"
+            )
+            st.json(r)
 
-# ------------------------------
-# AUTO-REFRESH (optional)
-# ------------------------------
-st.sidebar.markdown("---")
-auto = st.sidebar.checkbox("🔁 Auto-refresh logs every 10s")
 
-if auto:
-    time.sleep(10)
-    st.rerun()
+# -------------------------------
+# Live polling loop
+# -------------------------------
+st.toast("🚀 Live monitoring started")
+
+while True:
+    new_logs = read_new_lines()
+    if new_logs:
+        for log in new_logs:
+            log_id = log.get("log_id") or f"unknown-{time.time()}"
+            log["log_id"] = log_id
+            log["logged_at"] = datetime.now(timezone.utc).isoformat()
+
+            st.session_state.results.append(log)
+
+        render_dashboard()
+        st.toast(f"🆕 {len(new_logs)} new logs received")
+
+    time.sleep(1)  # check every second

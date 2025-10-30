@@ -1,2 +1,0 @@
-{"agent": "ResponseAgent", "action": "block_ip", "target": "192.168.56.10", "log_id": "819ebc91-a2cb-11f0-88a6-080027b4982b", "reason": "auto-detected", "time": "2025-10-30T09:58:32.626803Z", "status": "simulated", "logged_at": "2025-10-30T09:58:32.626825Z"}
-{"agent": "ResponseAgent", "action": "block_ip", "target": "192.168.56.10", "log_id": "819ebc91-a2cb-11f0-88a6-080027b4982b", "reason": "auto-detected", "time": "2025-10-30T10:02:15.030322Z", "status": "simulated", "logged_at": "2025-10-30T10:02:15.030333Z"}

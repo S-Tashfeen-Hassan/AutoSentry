@@ -10,7 +10,7 @@ class DetectionAgent:
     def _make_prompt(self, log: dict) -> str:
         """
         Strict prompt: ask LLM to output JSON ONLY with fields:
-        verdict (malicious|benign|uncertain), score (0.0-1.0), reasons[], recommended_action
+        verdict (malicious|benign), score (0.0-1.0), reasons[], recommended_action
         """
         examples = [
             {
@@ -25,7 +25,7 @@ class DetectionAgent:
         prompt_lines = [
             "You are a concise cybersecurity analyst. Given the single JSON log object below, output JSON ONLY with keys:",
             '  verdict: one of "malicious", "benign", "uncertain"',
-            '  score: float between 0.0 and 1.0 (higher means more malicious)',
+            '  score: float between 0.0 and 1.0 (higher means more malicious) and anything above 0.5 including 0.5 is malicious under is benign',
             '  reasons: array of short reasoning strings',
             '  recommended_action: one of "block_ip","notify","monitor"',
             "",
@@ -42,28 +42,38 @@ class DetectionAgent:
     def analyze(self, log: dict) -> dict:
         prompt = self._make_prompt(log)
         raw = call_llm(prompt, model=self.llm_model)
-        # try to parse JSON out of raw
+
+        parsed = None
         try:
-            # if raw is a JSON string
             parsed = json.loads(raw)
-            # ensure keys exist
-            if "verdict" in parsed:
-                return parsed
         except Exception:
-            # try to extract a JSON substring
             import re
             m = re.search(r"\{.*\}", raw, flags=re.S)
             if m:
                 try:
                     parsed = json.loads(m.group(0))
-                    if "verdict" in parsed:
-                        return parsed
                 except Exception:
                     pass
-        # fallback
+
+        # ✅ Enforce verdict logic even if LLM mislabels it
+        if isinstance(parsed, dict) and "score" in parsed:
+            score = parsed.get("score", 0.5)
+            verdict = parsed.get("verdict", "uncertain").lower()
+
+            if score >= 0.5 and verdict != "malicious":
+                parsed["verdict"] = "malicious"
+                parsed["recommended_action"] = parsed.get("recommended_action", "block_ip")
+
+            elif score < 0.5 and verdict != "benign":
+                parsed["verdict"] = "benign"
+                parsed["recommended_action"] = parsed.get("recommended_action", "monitor")
+
+            return parsed
+
+        # fallback if parsing fails entirely
         return {
             "verdict": "uncertain",
             "score": 0.5,
-            "reasons": ["llm_parse_failed", raw[:400]],
+            "reasons": ["llm_parse_failed", str(raw)[:400]],
             "recommended_action": "monitor"
         }
