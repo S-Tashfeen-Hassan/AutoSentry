@@ -21,10 +21,21 @@ if "last_pos" not in st.session_state:
 
 graph = st.session_state.graph
 
-st.title("🛰️ Agentic NDR - Live Detection & Response Dashboard")
-st.caption("Logs stream in from the planner → detection → response pipeline (real-time).")
+# -------------------------------
+# Header
+# -------------------------------
+st.markdown(
+    """
+    <h1 style='text-align:center; color:#00BFFF;'>Agentic NDR Dashboard</h1>
+    <p style='text-align:center; font-size:16px; color:gray;'>
+    Live feed from the <b>Planner → Detection → Response</b> pipeline.
+    </p>
+    <hr style='margin-top:10px;'>
+    """,
+    unsafe_allow_html=True
+)
 
-placeholder = st.empty()
+placeholder = st.container()
 
 # -------------------------------
 # Helper to read new lines
@@ -53,39 +64,101 @@ def read_new_lines():
 
 
 # -------------------------------
+# Color utilities with combined logic
+# -------------------------------
+def combined_verdict_color(planner_verdict: str, detection_verdict: str) -> str:
+    """
+    Color logic:
+      - Planner suspicious + Detection malicious  → Red (malicious)
+      - Planner suspicious + Detection benign     → Yellow (false positive)
+      - Planner benign → Green
+      - Otherwise → Gray
+    """
+    if planner_verdict == "suspicious" and detection_verdict == "malicious":
+        return "#ff4b4b"  # Red
+    elif planner_verdict == "suspicious" and detection_verdict == "benign":
+        return "#FFD700"  # Yellow
+    elif planner_verdict == "benign":
+        return "#00cc66"  # Green
+    elif planner_verdict == "malicious" or detection_verdict == "malicious":
+        return "#ff4b4b"  # Red as fallback
+    else:
+        return "#999999"  # Gray default
+
+
+def combined_icon(planner_verdict: str, detection_verdict: str) -> str:
+    if planner_verdict == "suspicious" and detection_verdict == "malicious":
+        return "🚨"
+    elif planner_verdict == "suspicious" and detection_verdict == "benign":
+        return "🟡"
+    elif planner_verdict == "benign":
+        return "✅"
+    elif planner_verdict == "malicious" or detection_verdict == "malicious":
+        return "🚨"
+    else:
+        return "⚪"
+
+
+# -------------------------------
 # Rendering function
 # -------------------------------
 def render_dashboard():
     results = st.session_state.results
-    with placeholder.container():
+    with placeholder:
         if not results:
             st.info("Waiting for logs to arrive...")
             return
 
-        st.markdown("### 📊 Live Logs Feed")
-        for r in reversed(results[-50:]):  # show last 50 only
-            verdict = r.get("planner", {}).get("verdict", "unknown")
-            detection = r.get("detection", {}).get("verdict", "pending")
+        st.write(f"Showing last {min(50, len(results))} entries")
+
+        for r in reversed(results[-50:]):  # show last 50
+            planner = r.get("planner", {})
+            detection = r.get("detection", {})
             response = r.get("response", {})
 
-            color_icon = {
-                "benign": "✅",
-                "suspicious": "🟡",
-                "malicious": "🚨",
-                "uncertain": "⚪",
-                "unknown": "⚪",
-            }.get(verdict, "⚪")
+            planner_verdict = planner.get("verdict", "unknown").lower()
+            detection_verdict = detection.get("verdict", "unknown").lower()
+
+            color = combined_verdict_color(planner_verdict, detection_verdict)
+            icon = combined_icon(planner_verdict, detection_verdict)
 
             st.markdown(
-                f"#### {color_icon} `{r.get('log_id', 'unknown')}` — Verdict: `{verdict}` → Detection: `{detection}`"
+                f"""
+                <div style="
+                    border-left: 6px solid {color};
+                    background-color: #1e1e1e;
+                    padding: 12px 18px;
+                    border-radius: 10px;
+                    margin-bottom: 12px;
+                ">
+                    <h4 style="margin: 0; color: {color};">
+                        {icon} Log <code>{r.get('log_id','unknown')}</code>
+                    </h4>
+                    <p style="margin: 4px 0; color: #aaa;">
+                        <b>Planner Verdict:</b> {planner_verdict} &nbsp; | &nbsp;
+                        <b>Detection Verdict:</b> {detection_verdict} &nbsp; | &nbsp;
+                        <b>Logged At:</b> {r.get("logged_at")}
+                    </p>
+                </div>
+                """,
+                unsafe_allow_html=True
             )
-            st.json(r)
+
+            with st.expander("Detailed Analysis"):
+                st.markdown("**Planner Agent Output:**")
+                st.json(planner)
+
+                st.markdown("**Detection Agent Output:**")
+                st.json(detection)
+
+                st.markdown("**Response Agent Output:**")
+                st.json(response if response else {"status": "No action triggered"})
 
 
 # -------------------------------
 # Live polling loop
 # -------------------------------
-st.toast("🚀 Live monitoring started")
+st.toast("Live monitoring started")
 
 while True:
     new_logs = read_new_lines()
@@ -94,10 +167,9 @@ while True:
             log_id = log.get("log_id") or f"unknown-{time.time()}"
             log["log_id"] = log_id
             log["logged_at"] = datetime.now(timezone.utc).isoformat()
-
             st.session_state.results.append(log)
 
         render_dashboard()
-        st.toast(f"🆕 {len(new_logs)} new logs received")
+        st.toast(f"{len(new_logs)} new logs received")
 
     time.sleep(1)  # check every second
