@@ -37,13 +37,11 @@ class PlannerAgent:
         matched = []
         text = json.dumps(log).lower()
 
-        # --- 1️⃣ Keyword-based heuristic ---
         for kw in RBF_KEYWORDS:
             if kw in text:
                 score += 0.25
                 matched.append(f"keyword:{kw}")
 
-        # --- 2️⃣ Packet/byte volume heuristic ---
         conn_like = log.get("conn_count") or log.get("flow_pkts_toserver") or log.get("flow_pkts_toclient") or 0
         try:
             conn_like = int(conn_like)
@@ -62,13 +60,11 @@ class PlannerAgent:
             score += 0.2
             matched.append("high_bytes")
 
-        # --- 3️⃣ Signature heuristic ---
         sig = (log.get("alert_signature") or log.get("alert_signature_id") or "").lower()
         if "compression bomb" in sig or "compression" in sig:
             score += 0.6
             matched.append("high_risk_signature")
 
-        # --- 4️⃣ Suricata Alert heuristic (NEW) ---
         event_type = (log.get("event_type") or "").lower()
         if event_type == "alert":
             score += 0.5

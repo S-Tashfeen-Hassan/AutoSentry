@@ -35,7 +35,6 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# ✅ Use a persistent placeholder to re-render cleanly
 placeholder = st.empty()
 
 # -------------------------------
@@ -82,13 +81,13 @@ def combined_verdict_color(planner_verdict: str, detection_verdict: str) -> str:
 
 def combined_icon(planner_verdict: str, detection_verdict: str) -> str:
     if planner_verdict == "suspicious" and detection_verdict == "malicious":
-        return "🚨"
+        return "🔴"
     elif planner_verdict == "suspicious" and detection_verdict == "benign":
         return "🟡"
     elif planner_verdict == "benign":
-        return "✅"
+        return "🟢"
     elif planner_verdict == "malicious" or detection_verdict == "malicious":
-        return "🚨"
+        return "🔴"
     else:
         return "⚪"
 
@@ -98,7 +97,7 @@ def combined_icon(planner_verdict: str, detection_verdict: str) -> str:
 # -------------------------------
 def render_dashboard():
     """Re-render dashboard cleanly inside the placeholder"""
-    with placeholder.container():  # ✅ clears previous view automatically
+    with placeholder.container():  
         results = st.session_state.results
 
         if not results:
@@ -110,7 +109,7 @@ def render_dashboard():
             unsafe_allow_html=True
         )
 
-        for r in reversed(results[-50:]):  # show last 50 only
+        for r in reversed(results[-500:]):  
             planner = r.get("planner", {})
             detection = r.get("detection", {})
             response = r.get("response", {})
@@ -157,7 +156,7 @@ def render_dashboard():
 # -------------------------------
 # Live polling loop
 # -------------------------------
-st.toast("🚀 Live monitoring started")
+st.toast("Live monitoring started")
 
 while True:
     new_logs = read_new_lines()
@@ -169,6 +168,6 @@ while True:
             st.session_state.results.append(log)
 
         render_dashboard()
-        st.toast(f"🆕 {len(new_logs)} new logs received")
+        st.toast(f"{len(new_logs)} new logs received")
 
     time.sleep(1)

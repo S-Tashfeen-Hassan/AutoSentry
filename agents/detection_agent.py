@@ -55,7 +55,6 @@ class DetectionAgent:
                 except Exception:
                     pass
 
-        # ✅ Enforce verdict logic even if LLM mislabels it
         if isinstance(parsed, dict) and "score" in parsed:
             score = parsed.get("score", 0.5)
             verdict = parsed.get("verdict", "uncertain").lower()

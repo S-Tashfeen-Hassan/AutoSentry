@@ -10,7 +10,7 @@ GRAYLOG_URL = "http://192.168.56.10:9000/api/search/universal/relative"
 USERNAME = "admin"
 PASSWORD = "pass123!"
 QUERY = "filebeat_source:suricata AND (event_type:alert OR event_type:fileinfo)"
-RANGE = 5    # last 2 minutes
+RANGE = 5    # last 6 seconds
 LIMIT = 500
 VERIFY_SSL = False
 INTERVAL = 5   # seconds between each query
@@ -67,11 +67,11 @@ def fetch_graylog():
             timeout=30
         )
         if resp.status_code != 200:
-            print(f"❌ Graylog returned status {resp.status_code}")
+            print(f"Graylog returned status {resp.status_code}")
             return None
         return resp.json()
     except requests.RequestException as e:
-        print(f"⚠️ Connection error: {e}")
+        print(f"Connection error: {e}")
         return None
 
 
@@ -119,7 +119,7 @@ def extract_logs(data):
 def write_logs(logs):
     """Append logs to logs.ndjson file."""
     if not logs:
-        print("ℹ️ No new logs this round.")
+        print("No new logs this round.")
         return
 
     os.makedirs(os.path.dirname(OUTFILE), exist_ok=True)
@@ -127,17 +127,17 @@ def write_logs(logs):
         for log in logs:
             f.write(json.dumps(log, ensure_ascii=False) + "\n")
 
-    print(f"✅ Appended {len(logs)} logs to {OUTFILE}")
+    print(f"Appended {len(logs)} logs to {OUTFILE}")
 
 
 def main_loop():
     """Continuously query Graylog every INTERVAL seconds."""
-    print(f"🚀 Starting Graylog fetch loop (every {INTERVAL}s)")
+    print(f"Starting Graylog fetch loop (every {INTERVAL}s)")
     while True:
         data = fetch_graylog()
         logs = extract_logs(data)
         write_logs(logs)
-        print(f"⏱️ Waiting {INTERVAL}s...\n")
+        print(f"Waiting {INTERVAL}s...\n")
         time.sleep(INTERVAL)
 
 
