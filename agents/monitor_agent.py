@@ -122,7 +122,7 @@ def write_logs(logs):
         print("No new logs this round.")
         return
 
-    os.makedirs(os.path.dirname(OUTFILE), exist_ok=True)
+    os.makedirs(os.path.dirname(OUTFILE), exist_ok=False)
     with open(OUTFILE, "a", encoding="utf-8") as f:
         for log in logs:
             f.write(json.dumps(log, ensure_ascii=False) + "\n")
@@ -130,15 +130,65 @@ def write_logs(logs):
     print(f"Appended {len(logs)} logs to {OUTFILE}")
 
 
+def flatten_zeek_wrapper(log):
+    """
+    Extracts the 'message' dictionary from each entry in a Zeek wrapper log
+    (Graylog style) and returns a list of these dictionaries.
+    If the log is not a Zeek wrapper, returns [log] as-is.
+    """
+    if isinstance(log, dict) and "messages" in log:
+        flattened = []
+        for entry in log["messages"]:
+            msg = entry.get("message")
+            if msg and isinstance(msg, dict):
+                flattened.append(msg)  # Keep the entire 'message' dict as-is
+        return flattened
+    else:
+        # Not a Zeek wrapper, return as a single-item list
+        return [log]
+
+
+INTERVAL = 0        #testing
+
 def main_loop():
-    """Continuously query Graylog every INTERVAL seconds."""
+    def main_loop():
+    """Continuously query Graylog every INTERVAL seconds and process logs by type."""
     print(f"Starting Graylog fetch loop (every {INTERVAL}s)")
+
     while True:
         data = fetch_graylog()
-        logs = extract_logs(data)
-        write_logs(logs)
+        if not data:
+            print(f"No data fetched. Waiting {INTERVAL}s...\n")
+            time.sleep(INTERVAL)
+            continue
+
+        all_logs = []
+
+        for raw in data:  # iterate over each top-level log returned from Graylog
+            # Detect Zeek wrapper log
+            if isinstance(raw, dict) and raw.get("messages") and raw.get("filebeat_source") == "zeek":
+                # Flatten Zeek wrapper logs
+                zeek_logs = flatten_zeek_wrapper(raw)
+                all_logs.extend(zeek_logs)
+
+            # Detect Suricata logs
+            elif isinstance(raw, dict) and raw.get("event_type") in ("alert", "fileinfo"):
+                formatted_logs = extract_logs({"messages": [{"message": raw}]})
+                all_logs.extend(formatted_logs)
+
+            else:
+                # Unknown log type, skip
+                continue
+
+        # Write all processed logs to file
+        if all_logs:
+            write_logs(all_logs)
+        else:
+            print("No new logs to write this round.")
+
         print(f"Waiting {INTERVAL}s...\n")
         time.sleep(INTERVAL)
+
 
 
 if __name__ == "__main__":
