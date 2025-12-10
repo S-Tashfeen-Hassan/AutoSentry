@@ -61,6 +61,7 @@ CONFIG = {
     "MAX_ANOMALY_MEMORY": 20000,
     "ANOMALY_ADD_AUTOMATIC": True,               # whether to automatically remember new anomalies
     "ANOMALY_KNOWN_SIMILE_RATIO": 0.5,           # how strict "known anomaly" matching is vs normal threshold
+    "ANOMALY_THRESHOLD": 0
 }
 
 
@@ -143,7 +144,9 @@ class ContinualDetector:
         # Ensure persistence directory exists
         ensure_dir(self.cfg["THRESH_PATH"])
 
-        # 1) Load thresholds if present, else compute from train embeddings
+        # ------------------------
+        # 1) Load thresholds or compute from train embeddings
+        # ------------------------
         if os.path.exists(self.cfg["THRESH_PATH"]):
             try:
                 self.thresholds = joblib.load(self.cfg["THRESH_PATH"])
@@ -154,64 +157,72 @@ class ContinualDetector:
         else:
             self._compute_thresholds_from_train()
 
-        # 2) Load provided normal FAISS index if exists
+        # ------------------------
+        # 2) Load normal FAISS index (provided)
+        # ------------------------
         if os.path.exists(self.cfg["FAISS_NORMAL_PATH"]):
             self.faiss_normal = faiss.read_index(self.cfg["FAISS_NORMAL_PATH"])
             print("[init] loaded provided FAISS normal index from", self.cfg["FAISS_NORMAL_PATH"])
         else:
-            # If not provided, try to create one from train embeddings if available
             if os.path.exists(self.cfg["TRAIN_EMB_PATH"]):
-                print("[init] No normal FAISS index provided; creating one from train embeddings.")
                 train_emb = self._load_train_embeddings(self.cfg["TRAIN_EMB_PATH"])
-                d = train_emb.shape[1]
-                self.faiss_normal = faiss.IndexFlatL2(d)
+                self.embed_dim = train_emb.shape[1]
+                self.faiss_normal = faiss.IndexFlatL2(self.embed_dim)
                 self.faiss_normal.add(train_emb.astype('float32'))
                 faiss.write_index(self.faiss_normal, self.cfg["FAISS_NORMAL_PERSIST"])
-                print("[init] created and saved faiss_normal.idx")
+                print("[init] created and saved faiss_normal.idx from train embeddings")
             else:
                 raise FileNotFoundError("No FAISS normal index or train embeddings found. Provide faiss_index.idx or train_embeddings.pt")
 
-        # 3) Determine embedding dimensionality
-        # read index.d if possible (faiss IndexFlatL2 doesn't have .d attribute, so infer from index.ntotal and vectors)
-        if isinstance(self.faiss_normal, faiss.IndexFlatL2):
-            # try to infer dims: if ntotal>0, search a dummy vector to get dimension via index.reconstruct maybe not available.
-            # We'll use train_embeddings to infer dim if available.
-            if os.path.exists(self.cfg["TRAIN_EMB_PATH"]):
-                train_emb = self._load_train_embeddings(self.cfg["TRAIN_EMB_PATH"])
-                d = train_emb.shape[1]
-            elif os.path.exists(self.cfg["FAISS_NORMAL_PERSIST"]):
-                # fallback
-                d = None
-            else:
-                d = None
-            if d is None:
-                raise RuntimeError("Cannot infer embedding dim. Provide train_embeddings.pt or set dim manually in config.")
-            self.embed_dim = d
-        else:
-            # For other index types, try to get dimension by reconstructing first vector
-            self.embed_dim = None
+        # ------------------------
+        # 3) Infer embedding dimension if not already set
+        # ------------------------
+        if self.embed_dim is None:
             if self.faiss_normal.ntotal > 0:
-                vec = np.zeros(self.faiss_normal.d, dtype='float32') if hasattr(self.faiss_normal, 'd') else None
-            # fallback raise
-            if self.embed_dim is None:
-                raise RuntimeError("Unable to infer embed_dim from FAISS index.")
+                try:
+                    vec0 = self.faiss_normal.reconstruct(0)
+                    self.embed_dim = len(vec0)
+                except Exception:
+                    raise RuntimeError("Cannot infer embed_dim from FAISS index. Provide train_embeddings.pt")
+            else:
+                if os.path.exists(self.cfg["TRAIN_EMB_PATH"]):
+                    train_emb = self._load_train_embeddings(self.cfg["TRAIN_EMB_PATH"])
+                    self.embed_dim = train_emb.shape[1]
+                else:
+                    raise RuntimeError("Cannot infer embed_dim. FAISS index empty and train embeddings missing.")
 
-        # 4) Load or create anomaly FAISS index with same dim
+        # ------------------------
+        # 4) Normalize FAISS vectors (L2 normalization)
+        # ------------------------
+        if self.faiss_normal.ntotal > 0:
+            vectors = np.zeros((self.faiss_normal.ntotal, self.embed_dim), dtype='float32')
+            for i in range(self.faiss_normal.ntotal):
+                vec = self.faiss_normal.reconstruct(i)
+                vectors[i] = vec / (np.linalg.norm(vec) + 1e-10)
+            # Rebuild normalized index
+            self.faiss_normal = faiss.IndexFlatL2(self.embed_dim)
+            self.faiss_normal.add(vectors)
+            faiss.write_index(self.faiss_normal, self.cfg["FAISS_NORMAL_PERSIST"])
+            print("[init] normalized FAISS normal index vectors")
+
+        # ------------------------
+        # 5) Load or create anomaly FAISS index
+        # ------------------------
         self.faiss_anomaly = load_or_create_faiss_index(self.cfg["FAISS_ANOMALY_PERSIST"], self.embed_dim)
         print("[init] anomaly FAISS index ready. ntotal:", self.faiss_anomaly.ntotal)
 
-        # 5) Load or initialize memory arrays
+        # ------------------------
+        # 6) Load or initialize memory arrays
+        # ------------------------
         if os.path.exists(self.cfg["NORMAL_MEMORY_NPY"]):
             self.normal_memory = np.load(self.cfg["NORMAL_MEMORY_NPY"])
             print("[init] loaded normal memory shape:", self.normal_memory.shape)
         else:
-            # try to seed from train embeddings if present
             if os.path.exists(self.cfg["TRAIN_EMB_PATH"]):
                 self.normal_memory = self._load_train_embeddings(self.cfg["TRAIN_EMB_PATH"]).astype('float32')
                 np.save(self.cfg["NORMAL_MEMORY_NPY"], self.normal_memory)
                 print("[init] created normal_memory from train embeddings shape:", self.normal_memory.shape)
             else:
-                # seed with contents of normal FAISS index if possible (not trivial). Start empty
                 self.normal_memory = np.empty((0, self.embed_dim), dtype='float32')
                 np.save(self.cfg["NORMAL_MEMORY_NPY"], self.normal_memory)
                 print("[init] started empty normal_memory")
@@ -224,18 +235,19 @@ class ContinualDetector:
             np.save(self.cfg["ANOMALY_MEMORY_NPY"], self.anomaly_memory)
             print("[init] started empty anomaly_memory")
 
-        # 6) Set anomaly similarity threshold if not provided
+        # ------------------------
+        # 7) Set anomaly similarity threshold if not provided
+        # ------------------------
         if self.cfg["ANOMALY_SIM_THRESHOLD"] is None:
-            # default: anomalies considered 'known' if distance to known anomaly < 0.5 * high_threshold
             if self.thresholds["high"] is not None:
                 self.cfg["ANOMALY_SIM_THRESHOLD"] = max(1e-6, self.thresholds["high"] * self.cfg["ANOMALY_KNOWN_SIMILE_RATIO"])
             else:
-                self.cfg["ANOMALY_SIM_THRESHOLD"] = 1.0  # fallback
+                self.cfg["ANOMALY_SIM_THRESHOLD"] = 1.0
         print("[init] anomaly similarity threshold:", self.cfg["ANOMALY_SIM_THRESHOLD"])
         print("high threshold value: ", self.thresholds["high"])
 
-        # 7) Load encoder architecture placeholder; actual input_dim must be set when processing the first log
         print("[init] initialization done.")
+
 
     def _load_train_embeddings(self, path: str) -> np.ndarray:
         if path.endswith(".pt"):
@@ -300,20 +312,20 @@ class ContinualDetector:
     # Embedding computation
     # -----------------------
     def embed_batch(self, X: np.ndarray, batch_size: Optional[int] = None) -> np.ndarray:
-        if batch_size is None:
-            batch_size = self.cfg["EMBED_BATCH"]
-        if self.encoder is None:
-            # lazy init encoder: assume embedding dim same as self.embed_dim and infer input dim
-            raise RuntimeError("Encoder not initialized. Call process_single or process_batch with known input_dim first.")
-        self.encoder.eval()
-        embs = []
-        with torch.no_grad():
-            for i in range(0, len(X), batch_size):
-                xb = torch.tensor(X[i:i+batch_size], dtype=torch.float32, device=self.device)
-                z = self.encoder(xb).cpu().numpy()
-                embs.append(z.astype('float32'))
-        return np.vstack(embs)
-
+            if batch_size is None:
+                batch_size = self.cfg["EMBED_BATCH"]
+            if self.encoder is None:
+                raise RuntimeError("Encoder not initialized.")
+            self.encoder.eval()
+            embs = []
+            with torch.no_grad():
+                for i in range(0, len(X), batch_size):
+                    xb = torch.tensor(X[i:i+batch_size], dtype=torch.float32, device=self.device)
+                    z = self.encoder(xb).cpu().numpy()
+                    # --- normalize each embedding ---
+                    z = z / (np.linalg.norm(z, axis=1, keepdims=True) + 1e-10)
+                    embs.append(z.astype('float32'))
+            return np.vstack(embs)
     # -----------------------
     # Core inference logic
     # -----------------------
@@ -344,8 +356,8 @@ class ContinualDetector:
          - is_known_attack: anomaly_score < anomaly_sim_threshold
          - action: 0 normal, 1 anomaly_new, 2 anomaly_known
         """
-        high = self.thresholds.get("high", np.inf)
-        anomaly_flag = (normal_scores > high).astype(int)
+      
+        anomaly_flag = (anomaly_scores > self.cfg["ANOMALY_THRESHOLD"]).astype(int)
         known_flag = (anomaly_scores < self.cfg["ANOMALY_SIM_THRESHOLD"]).astype(int)
         # If known_flag true, treat as known anomaly regardless of normal_score
         action = np.zeros_like(anomaly_flag, dtype=np.int32)
@@ -384,6 +396,7 @@ class ContinualDetector:
         normal_scores, anomaly_scores = self.infer_scores(emb.reshape(1, -1))
         normal_score = float(normal_scores[0])
         anomaly_score = float(anomaly_scores[0])
+        anomaly_score = anomaly_score*1e8
         anomaly_flag, known_flag, action = self.classify(np.array([normal_score]), np.array([anomaly_score]))
         action_code = int(action[0])
         result = {
@@ -452,43 +465,57 @@ class ContinualDetector:
 
         return res
 
+
     # -----------------------
-    # Memory update helpers
+    # Memory update helpers (with L2 normalization)
     # -----------------------
     def add_normals(self, new_embs: np.ndarray):
         new_embs = np.asarray(new_embs, dtype='float32')
+        # --- normalize embeddings ---
+        new_embs = new_embs / (np.linalg.norm(new_embs, axis=1, keepdims=True) + 1e-10)
+
         # append to memory
         if self.normal_memory.size == 0:
             self.normal_memory = new_embs.copy()
         else:
             self.normal_memory = np.vstack([self.normal_memory, new_embs])
+
         # cap memory
         if len(self.normal_memory) > self.cfg["MAX_NORMAL_MEMORY"]:
-            # drop oldest
             excess = len(self.normal_memory) - self.cfg["MAX_NORMAL_MEMORY"]
             self.normal_memory = self.normal_memory[excess:]
+
         np.save(self.cfg["NORMAL_MEMORY_NPY"], self.normal_memory)
+
         # add to FAISS normal index
         self.faiss_normal.add(new_embs)
-        # persist index
         faiss.write_index(self.faiss_normal, self.cfg["FAISS_NORMAL_PERSIST"])
         print("[memory] added normals:", new_embs.shape[0], "normal_memory shape:", self.normal_memory.shape)
 
+
     def add_anomalies(self, new_embs: np.ndarray):
         new_embs = np.asarray(new_embs, dtype='float32')
+        # --- normalize embeddings ---
+        new_embs = new_embs / (np.linalg.norm(new_embs, axis=1, keepdims=True) + 1e-10)
+
+        # append to memory
         if self.anomaly_memory.size == 0:
             self.anomaly_memory = new_embs.copy()
         else:
             self.anomaly_memory = np.vstack([self.anomaly_memory, new_embs])
+
         # cap memory
         if len(self.anomaly_memory) > self.cfg["MAX_ANOMALY_MEMORY"]:
             excess = len(self.anomaly_memory) - self.cfg["MAX_ANOMALY_MEMORY"]
             self.anomaly_memory = self.anomaly_memory[excess:]
+
         np.save(self.cfg["ANOMALY_MEMORY_NPY"], self.anomaly_memory)
+
         # add to anomaly FAISS index
         self.faiss_anomaly.add(new_embs)
         faiss.write_index(self.faiss_anomaly, self.cfg["FAISS_ANOMALY_PERSIST"])
         print("[memory] added anomalies:", new_embs.shape[0], "anomaly_memory shape:", self.anomaly_memory.shape)
+
 
     # -----------------------
     # Maintenance tasks

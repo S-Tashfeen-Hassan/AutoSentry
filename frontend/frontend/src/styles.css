@@ -1,0 +1,118 @@
+:root{
+  --bg:#0f1113;
+  --panel:#1e1e1e;
+  --muted:#9aa0a6;
+  --accent:#00bfff;
+}
+
+body,html,#root{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial}
+
+.app{display:flex;height:100vh;background:linear-gradient(180deg,#0b0b0b 0%, #101214 100%)}
+.sidebar{width:220px;background:#0b0f12;padding:18px;color:var(--muted);border-right:1px solid rgba(255,255,255,0.03)}
+.main{flex:1;padding:24px;overflow:auto}
+.header{color:var(--accent);text-align:center}
+.subtitle{color:var(--muted);text-align:center;margin-bottom:12px}
+.panel{background:var(--panel);border-radius:10px;padding:16px;margin-bottom:16px;color:#e6eef4}
+.kpis{display:flex;gap:12px}
+.kpi{flex:1;padding:12px;background:#131416;border-radius:8px}
+.title{font-size:18px;color:var(--accent)}
+.count{color:var(--muted);margin-bottom:12px}
+
+/* Live feed cards */
+.log-card{background:#141516;border-radius:10px;padding:14px;margin-bottom:12px;border-left:6px solid #777}
+.log-title{margin:0}
+.log-meta{color:var(--muted);margin:6px 0}
+.json-block{background:#0b0b0b;padding:10px;border-radius:6px;margin-top:8px;overflow:auto;white-space:pre-wrap}
+.footer-note{color:var(--muted);font-size:12px;margin-top:8px}
+
+/* Sidebar items */
+.nav-item{padding:8px 10px;border-radius:6px;display:flex;align-items:center;gap:10px;margin-bottom:6px;cursor:pointer}
+.nav-item.active{background:linear-gradient(90deg, rgba(0,191,255,0.08), rgba(0,191,255,0.03));color:var(--accent)}
+.navbar {
+  background: #1a1a1a;
+  border-bottom: 1px solid #2a2a2a;
+  padding: 10px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.navbar-brand {
+  color: #00bfff;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.navbar-subtitle {
+  color: #9aa0a6;
+  font-size: 12px;
+}
+
+.navbar-menu {
+  display: flex;
+  gap: 26px;
+}
+
+.navbar-item {
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 6px;
+  transition: all 0.2s;
+  font-size: 14px;
+  color: #e0e0e0;
+}
+
+.navbar-item:hover {
+  color: #6cd6ff;
+}
+
+.navbar-item.active {
+  color: #00bfff;
+  background: #0f0f0f;
+  font-weight: 600;
+}
+
+.navbar-backend {
+  color: #7f8c8d;
+  font-size: 13px;
+}
+
+
+details {
+  color: #e0e0e0;
+}
+
+details summary {
+  color: #00bfff;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+/* Container for each JSON section */
+.json-block {
+  background: #1c1c1c;          /* dark gray, not black */
+  color: #e0e0e0;
+  padding: 12px;
+  border-radius: 8px;
+  margin-top: 10px;
+  border: 1px solid #2e2e2e;    /* soft border outline */
+  box-shadow: 0px 1px 2px #0006;
+}
+
+/* JSON text styling */
+.json-block pre {
+  background: transparent;
+  color: #cfcfcf;               /* slightly softer white */
+  margin: 0;
+  font-size: 14px;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  white-space: pre-wrap;         /* wrap instead of horizontal scrolling */
+}
+
+/* Extra refinement to match your log card theme */
+details[open] summary {
+  color: #33c7ff;
+}

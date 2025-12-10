@@ -1,0 +1,56 @@
+body {
+  background: #111;
+  color: #e0e0e0;
+  font-family: Arial, sans-serif;
+}
+
+.container {
+  width: 80%;
+  margin: auto;
+  padding-top: 30px;
+}
+
+.title {
+  text-align: center;
+  color: #00bfff;
+  margin-bottom: 5px;
+}
+
+.subtitle {
+  text-align: center;
+  color: gray;
+}
+
+.count {
+  color: gray;
+  margin: 20px 0 10px;
+}
+
+.log-card {
+  background: #1e1e1e;
+  padding: 18px;
+  border-radius: 10px;
+  margin-bottom: 12px;
+}
+
+.log-title {
+  margin: 0;
+}
+
+.log-meta {
+  color: #aaa;
+  margin-bottom: 10px;
+}
+
+.expander summary {
+  cursor: pointer;
+  color: #00bfff;
+}
+
+.json-block {
+  background: #000;
+  padding: 10px;
+  border-radius: 6px;
+  margin: 8px 0;
+  font-size: 14px;
+}
