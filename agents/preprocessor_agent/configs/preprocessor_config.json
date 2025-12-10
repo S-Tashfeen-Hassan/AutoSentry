@@ -1,0 +1,20 @@
+{
+  "flow_key": ["proto","service","state","ct_srv_src","ct_dst_ltm","ct_src_dport_ltm","ct_dst_sport_ltm"],
+  "agg_dict": {
+    "spkts": "sum", "dpkts": "sum", "sbytes": "sum", "dbytes": "sum",
+    "sload": "sum", "dload": "sum", "sloss": "sum", "dloss": "sum",
+    "ackdat": "sum", "synack": "sum", "is_ftp_login": "sum",
+    "ct_ftp_cmd": "sum", "ct_flw_http_mthd": "sum", "ct_src_ltm": "sum", "ct_srv_dst": "sum", "is_sm_ips_ports": "sum", "ct_dst_src_ltm": "sum", "ct_state_ttl": "sum",
+    "rate": "mean", "sttl": "mean", "dttl": "mean", "sinpkt": "mean", "dinpkt": "mean", "sjit": "mean", "djit": "mean", "swin": "mean", "stcpb": "mean", "dtcpb": "mean", "dwin": "mean", "tcprtt": "mean", "smean": "mean", "dmean": "mean",
+    "dur": "max", "response_body_len": "max", "trans_depth": "max"
+  },
+  "dynamic_window": {
+    "min_batch_size": 10,
+    "max_batch_size": 2000,
+    "base_flush_seconds": 5,
+    "max_flush_seconds": 60,
+    "high_traffic_events_per_sec": 200,
+    "low_traffic_events_per_sec": 2
+  },
+  "unknown_cat_code": 255
+}

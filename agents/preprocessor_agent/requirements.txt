@@ -1,0 +1,7 @@
+numpy
+pandas
+scikit-learn
+joblib
+python-dateutil
+watchdog
+ujson
