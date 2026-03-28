@@ -2,6 +2,8 @@ import requests
 import json
 import time
 import re
+from pathlib import Path
+import os
 
 OLLAMA_URL = "http://100.114.114.9:11434/api/generate"
 
@@ -22,7 +24,7 @@ def sanitize_json(raw_text: str):
         return None
 
 
-def call_llm(log: str, score: float):
+def call_llm(log: str):
     """
     Send malicious log to the local Ollama LLM and request corrective action.
     """
@@ -44,7 +46,7 @@ def call_llm(log: str, score: float):
     - If the log indicates malware, isolate the host.
     - If unsure, choose the safest minimal action.
 
-    Here is the malicious log:
+    Here is a log, decide if it is malicious:
 
     LOG:
     {log}
@@ -64,7 +66,7 @@ def call_llm(log: str, score: float):
     }
 
     try:
-        response = requests.post(OLLAMA_URL, json=payload, timeout=30)
+        response = requests.post(OLLAMA_URL, json=payload, timeout=100)
         response.raise_for_status()
         raw = response.json()["response"]
         return raw
@@ -73,7 +75,7 @@ def call_llm(log: str, score: float):
         return None
 
 
-def response_agent(log: str, score: float):
+def response_agent(log: str):
     """
     Main entrypoint of the Response Agent.
     - Calls LLM
@@ -81,7 +83,7 @@ def response_agent(log: str, score: float):
     - Applies fallback behavior if needed
     """
 
-    raw_output = call_llm(log, score)
+    raw_output = call_llm(log)
 
     if not raw_output:
         print("[WARN] No output from LLM. Using fallback.")
@@ -107,10 +109,57 @@ def response_agent(log: str, score: float):
 # -------------------------------
 # Example usage
 # -------------------------------
+
+# Paths
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
+INPUT_FILE = Path("../data/logs.ndjson")
+OUTPUT_FILE = Path("../data/response_output.ndjson")
+
+def save_response_ndjson(response_obj):
+    """Append the response agent output to NDJSON file."""
+    try:
+        with open(OUTPUT_FILE, "a") as f:
+            f.write(json.dumps(response_obj) + "\n")
+    except Exception as e:
+        print(f"[ERROR] Could not write to NDJSON output file: {e}")
+
+def read_first_log():
+    """Reads the first line (first log) of the NDJSON file."""
+    try:
+        with open(INPUT_FILE, "r") as f:
+            line = f.readline().strip()
+            if not line:
+                return None
+            return json.loads(line)
+    except Exception as e:
+        print(f"[ERROR] Unable to read log file: {e}")
+        return None
+
 if __name__ == "__main__":
 
-    malicious_log = "Failed password for root from 203.44.12.77 port 4455 ssh2"
-    score = 0.92
+    while True:
+        # Read the first log repeatedly
+        log_entry = read_first_log()
 
-    result = response_agent(malicious_log, score)
-    print(json.dumps(result, indent=2))
+        if log_entry:
+            # Extract raw log (string) OR use entire object
+            # Modify based on your schema
+            malicious_log = json.dumps(log_entry, ensure_ascii=False)
+
+            # For now we assume the anomaly score will come from your pipeline
+            # score = 0.92  # Replace later with actual scorer
+
+            # Call response agent
+            result = response_agent(malicious_log)
+
+            # Print output in terminal
+            print(json.dumps(result, indent=2))
+            
+            
+            save_response_ndjson(result) 
+
+        else:
+            print("[INFO] No logs found. Waiting...")
+
+        # Wait 2 seconds before next iteration
+        time.sleep(2)

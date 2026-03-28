@@ -6,7 +6,7 @@ from requests.auth import HTTPBasicAuth
 from collections import OrderedDict
 
 # === CONFIGURATION ===
-GRAYLOG_URL = "https://police-amongst-consolidated-character.trycloudflare.com/api/search/universal/relative"
+GRAYLOG_URL = "http://100.91.173.71:9000/api/search/universal/relative"
 USERNAME = "admin"
 PASSWORD = "pass123!"
 
