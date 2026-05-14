@@ -12,6 +12,12 @@ process.env.AUTOSENTRY_API_TRACE_CACHE_LIMIT = "3";
 const request = require("supertest");
 const { app, resetCachesForTests } = require("./server");
 
+function demo(title, payload) {
+  if (process.env.AUTOSENTRY_DEMO_TEST_OUTPUT !== "1") return;
+  console.log(`\n[AutoSentry Demo] ${title}`);
+  console.log(JSON.stringify(payload, null, 2));
+}
+
 function writeFixture({ traces = [], assets = [] } = {}) {
   fs.writeFileSync(
     process.env.AUTOSENTRY_TRACE_LOG_PATH,
@@ -106,6 +112,21 @@ test("dashboard API returns overview, incidents, details, graph, assets, respons
   const graph = await request(app).get("/api/graph").expect(200);
   assert.ok(graph.body.nodes.length > 0);
   assert.ok(graph.body.edges.length > 0);
+
+  demo("Dashboard API populated state", {
+    overview: overview.body,
+    latestIncident: {
+      id: live.body[0].id,
+      verdict: live.body[0].verdict,
+      classificationPath: live.body[0].classificationPath,
+      responseAction: live.body[0].response.action,
+    },
+    asset: assets.body[0],
+    response: responses.body[0],
+    health: health.body,
+    graphCounts: { nodes: graph.body.nodes.length, edges: graph.body.edges.length },
+    missingIncidentStatus: 404,
+  });
 });
 
 test("dashboard API returns stable empty contracts", async () => {
@@ -120,4 +141,11 @@ test("dashboard API returns stable empty contracts", async () => {
   assert.deepEqual(incidents.body, []);
   assert.deepEqual(assets.body, []);
   assert.equal(health.body.ingest.status, "idle");
+
+  demo("Dashboard API empty state", {
+    overview: overview.body,
+    incidents: incidents.body,
+    assets: assets.body,
+    health: health.body,
+  });
 });

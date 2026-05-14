@@ -7,7 +7,7 @@ from agents.ingest_service import IngestService
 from core.graph import AgentGraph
 
 
-def test_pipeline_smoke_writes_dashboard_compatible_traces(monkeypatch, tmp_path, sample_events):
+def test_pipeline_smoke_writes_dashboard_compatible_traces(monkeypatch, tmp_path, sample_events, demo_output):
     raw_path = tmp_path / "logs.ndjson"
     trace_path = tmp_path / "traces.ndjson"
     action_path = tmp_path / "actions.log"
@@ -31,3 +31,15 @@ def test_pipeline_smoke_writes_dashboard_compatible_traces(monkeypatch, tmp_path
         assert trace["detection_result"]["verdict"]
         assert trace["response_result"]["action"]
         assert trace["trace_metadata"]["trace_id"]
+    demo_output(
+        "Dashboard-compatible trace persistence",
+        {
+            "input_events": len(logs),
+            "processed_traces": len(results),
+            "persisted_traces": len(persisted),
+            "trace_ids": [trace["trace_metadata"]["trace_id"] for trace in persisted],
+            "verdicts": [trace["detection_result"]["verdict"] for trace in persisted],
+            "response_actions": [trace["response_result"]["action"] for trace in persisted],
+            "trace_path": str(trace_path),
+        },
+    )

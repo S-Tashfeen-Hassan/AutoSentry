@@ -14,7 +14,7 @@ def _event():
     }
 
 
-def test_response_skips_benign_and_dry_runs_external_block(monkeypatch):
+def test_response_skips_benign_and_dry_runs_external_block(monkeypatch, demo_output):
     actions = []
     monkeypatch.setattr(response_runtime, "RESPONSE_MODE", "dry_run")
     monkeypatch.setattr(response_runtime, "log_action", actions.append)
@@ -37,9 +37,22 @@ def test_response_skips_benign_and_dry_runs_external_block(monkeypatch):
     assert malicious["action"] == "block_source_ip_on_firewall"
     assert malicious["status"] == "dry_run"
     assert len(actions) == 1
+    demo_output(
+        "Response policy decisions",
+        {
+            "benign": {"action": benign["action"], "status": benign["status"], "command": benign["command_summary"]},
+            "malicious": {
+                "action": malicious["action"],
+                "status": malicious["status"],
+                "executor": malicious["executor"],
+                "command": malicious["command_summary"],
+            },
+            "audit_records_logged": len(actions),
+        },
+    )
 
 
-def test_response_execute_mode_powershell_is_mocked(monkeypatch):
+def test_response_execute_mode_powershell_is_mocked(monkeypatch, demo_output):
     def fake_run(command, **kwargs):
         assert command[0] == "powershell"
         return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
@@ -62,3 +75,7 @@ def test_response_execute_mode_powershell_is_mocked(monkeypatch):
 
     assert result["status"] == "completed"
     assert result["executor"] == "local_powershell"
+    demo_output(
+        "Execute mode is safely mocked",
+        {"action": result["action"], "executor": result["executor"], "status": result["status"]},
+    )

@@ -5,7 +5,7 @@ import json
 from agents.ingest_service import IngestService
 
 
-def test_ingest_fetch_batch_skips_bad_lines_and_advances_checkpoint(tmp_path):
+def test_ingest_fetch_batch_skips_bad_lines_and_advances_checkpoint(tmp_path, demo_output):
     source = tmp_path / "logs.ndjson"
     checkpoint = tmp_path / "checkpoint.json"
     source.write_text(
@@ -27,9 +27,18 @@ def test_ingest_fetch_batch_skips_bad_lines_and_advances_checkpoint(tmp_path):
     assert [row["_id"] for row in first] == ["one", "two"]
     assert [row["_id"] for row in second] == ["three"]
     assert json.loads(checkpoint.read_text(encoding="utf-8"))["line"] == 4
+    demo_output(
+        "Ingest checkpoint and malformed-line handling",
+        {
+            "first_batch_ids": [row["_id"] for row in first],
+            "second_batch_ids": [row["_id"] for row in second],
+            "checkpoint": json.loads(checkpoint.read_text(encoding="utf-8")),
+            "malformed_lines_skipped": 1,
+        },
+    )
 
 
-def test_ingest_replay_recent_load_all_and_slice(tmp_path):
+def test_ingest_replay_recent_load_all_and_slice(tmp_path, demo_output):
     source = tmp_path / "logs.ndjson"
     source.write_text(
         "\n".join(json.dumps({"_id": str(index)}) for index in range(4)),
@@ -42,11 +51,21 @@ def test_ingest_replay_recent_load_all_and_slice(tmp_path):
     batch, cursor = ingest.replay_slice(3, 3)
     assert [row["_id"] for row in batch] == ["3"]
     assert cursor == 0
+    demo_output(
+        "Replay helpers",
+        {
+            "recent_ids": [row["_id"] for row in ingest.replay_recent(2)],
+            "all_ids": [row["_id"] for row in ingest.load_all()],
+            "slice_ids": [row["_id"] for row in batch],
+            "next_cursor": cursor,
+        },
+    )
 
 
-def test_ingest_missing_source_returns_empty(tmp_path):
+def test_ingest_missing_source_returns_empty(tmp_path, demo_output):
     ingest = IngestService(tmp_path / "missing.ndjson", tmp_path / "checkpoint.json")
 
     assert ingest.fetch_batch(5) == []
     assert ingest.replay_recent(5) == []
     assert ingest.load_all() == []
+    demo_output("Missing ingest source", {"source_exists": False, "fetch_batch": [], "replay_recent": [], "load_all": []})

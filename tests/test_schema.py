@@ -3,7 +3,7 @@ from __future__ import annotations
 from utils.schema import build_event_envelope, derive_event_id, derive_timestamp, stable_hash
 
 
-def test_schema_derives_timestamp_id_and_envelope_contract():
+def test_schema_derives_timestamp_id_and_envelope_contract(demo_output):
     raw = {
         "_id": "abc-123",
         "@timestamp": "2026-04-14T12:00:00Z",
@@ -22,7 +22,19 @@ def test_schema_derives_timestamp_id_and_envelope_contract():
     assert envelope["trace_metadata"]["trace_id"]
     assert envelope["trace_metadata"]["pipeline_version"]
     assert envelope["trace_metadata"]["feature_version"]
+    demo_output(
+        "Schema envelope contract",
+        {
+            "event_id": envelope["event_id"],
+            "timestamp": envelope["timestamp"],
+            "sections": sorted(envelope.keys()),
+            "trace_metadata": envelope["trace_metadata"],
+        },
+    )
 
 
-def test_stable_hash_is_order_insensitive_for_dicts():
-    assert stable_hash({"b": 2, "a": 1}) == stable_hash({"a": 1, "b": 2})
+def test_stable_hash_is_order_insensitive_for_dicts(demo_output):
+    left = stable_hash({"b": 2, "a": 1})
+    right = stable_hash({"a": 1, "b": 2})
+    assert left == right
+    demo_output("Stable hash is deterministic", {"left": left, "right": right, "match": left == right})

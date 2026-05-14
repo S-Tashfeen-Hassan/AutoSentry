@@ -2,10 +2,18 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import json
+import os
 
 from core.graph import AgentGraph
 import utils.asset_inventory as inventory
 import utils.db_logger as db_logger
+
+
+def _demo_output(title, payload):
+    if os.getenv("AUTOSENTRY_DEMO_TEST_OUTPUT") != "1":
+        return
+    print(f"\n[AutoSentry Demo] {title}")
+    print(json.dumps(payload, indent=2, sort_keys=True, default=str))
 
 
 class PipelineTests(unittest.TestCase):
@@ -66,6 +74,16 @@ class PipelineTests(unittest.TestCase):
 
         self.assertIn(trace["planner_result"]["route"], {"skip", "fast_detect"})
         self.assertEqual(trace["detection_result"]["verdict"], "benign")
+        _demo_output(
+            "Benign management event",
+            {
+                "event_id": trace["event_id"],
+                "planner_route": trace["planner_result"]["route"],
+                "verdict": trace["detection_result"]["verdict"],
+                "response_status": trace["response_result"]["status"],
+                "story": trace["story"],
+            },
+        )
 
     def test_high_risk_signature_triggers_response_plan(self):
         event = {
@@ -92,6 +110,15 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(trace["detection_result"]["verdict"], "malicious")
         self.assertEqual(trace["response_result"]["action"], "block_source_ip_on_firewall")
         self.assertIn(trace["response_result"]["status"], {"dry_run", "completed", "pending_remote_execution"})
+        _demo_output(
+            "High-risk SQL injection response",
+            {
+                "event_id": trace["event_id"],
+                "planner": trace["planner_result"],
+                "detection": trace["detection_result"],
+                "response": trace["response_result"],
+            },
+        )
 
     def test_trace_contract_contains_required_sections(self):
         event = {
@@ -117,6 +144,24 @@ class PipelineTests(unittest.TestCase):
             "trace_metadata",
         ):
             self.assertIn(key, trace)
+        _demo_output(
+            "Trace contract sections",
+            {
+                "event_id": trace["event_id"],
+                "required_sections_present": [
+                    "event_id",
+                    "timestamp",
+                    "raw_event",
+                    "normalized_features",
+                    "planner_result",
+                    "detection_result",
+                    "response_result",
+                    "asset_context",
+                    "trace_metadata",
+                ],
+                "trace_metadata": trace["trace_metadata"],
+            },
+        )
 
 
 if __name__ == "__main__":

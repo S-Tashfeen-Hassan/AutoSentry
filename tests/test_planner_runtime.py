@@ -15,7 +15,7 @@ def _planned(raw_event):
     return PlannerAgent(state).process(trace)
 
 
-def test_planner_routes_benign_fast_escalate_and_response(sample_events):
+def test_planner_routes_benign_fast_escalate_and_response(sample_events, demo_output):
     benign = _planned(sample_events["benign"])
     malicious = _planned(sample_events["malicious"])
     suspicious = _planned(sample_events["suspicious"])
@@ -25,9 +25,27 @@ def test_planner_routes_benign_fast_escalate_and_response(sample_events):
     assert malicious["short_circuit_verdict"] == "malicious"
     assert suspicious["route"] in {"fast_detect", "escalate_llm"}
     assert suspicious["priority"] in {"low", "medium", "high"}
+    demo_output(
+        "Planner routing matrix",
+        {
+            "benign": {"route": benign["route"], "score": benign["score"], "priority": benign["priority"]},
+            "malicious": {
+                "route": malicious["route"],
+                "score": malicious["score"],
+                "priority": malicious["priority"],
+                "short_circuit": malicious["short_circuit_verdict"],
+                "recommended_action": malicious["recommended_action"],
+            },
+            "suspicious": {
+                "route": suspicious["route"],
+                "score": suspicious["score"],
+                "priority": suspicious["priority"],
+            },
+        },
+    )
 
 
-def test_planner_duplicate_suppression_and_repeat_offender(sample_events):
+def test_planner_duplicate_suppression_and_repeat_offender(sample_events, demo_output):
     state = StateStore(suppression_window_seconds=60)
     planner = PlannerAgent(state)
     trace = build_event_envelope(sample_events["suspicious"])
@@ -45,3 +63,13 @@ def test_planner_duplicate_suppression_and_repeat_offender(sample_events):
 
     repeat = planner.process(trace)
     assert "repeat_offender" in repeat["reasons"]
+    demo_output(
+        "Planner correlation controls",
+        {
+            "first_score": first["score"],
+            "duplicate_score": duplicate["score"],
+            "duplicate_reasons": duplicate["reasons"],
+            "repeat_score": repeat["score"],
+            "repeat_reasons": repeat["reasons"],
+        },
+    )

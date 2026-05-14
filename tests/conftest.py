@@ -1,10 +1,33 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any, Dict
 
 import pytest
+
+
+def pytest_addoption(parser: pytest.Parser) -> None:
+    parser.addoption(
+        "--demo-output",
+        action="store_true",
+        default=False,
+        help="Print human-readable AutoSentry test evidence for demos.",
+    )
+
+
+@pytest.fixture
+def demo_output(request: pytest.FixtureRequest):
+    enabled = request.config.getoption("--demo-output") or os.getenv("AUTOSENTRY_DEMO_TEST_OUTPUT") == "1"
+
+    def emit(title: str, payload: Dict[str, Any]) -> None:
+        if not enabled:
+            return
+        print(f"\n[AutoSentry Demo] {title}")
+        print(json.dumps(payload, indent=2, sort_keys=True, default=str))
+
+    return emit
 
 
 @pytest.fixture

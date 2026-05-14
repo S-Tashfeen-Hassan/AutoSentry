@@ -137,6 +137,17 @@ const graph = {
   edges: [{ from: "src:203.0.113.99", to: "incident:trace-mal" }],
 };
 
+function demo(title, payload) {
+  if (
+    import.meta.env?.AUTOSENTRY_DEMO_TEST_OUTPUT !== "1" &&
+    globalThis.process?.env?.AUTOSENTRY_DEMO_TEST_OUTPUT !== "1"
+  ) {
+    return;
+  }
+  console.log(`\n[AutoSentry Demo] ${title}`);
+  console.log(JSON.stringify(payload, null, 2));
+}
+
 function mockApi(payload = {}) {
   const data = {
     overview,
@@ -189,6 +200,16 @@ describe("AutoSentry dashboard", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "System Health" }));
     expect(await screen.findByText("Pipeline Latency")).toBeTruthy();
+    demo("Frontend dashboard populated navigation", {
+      loadedIncident: {
+        headline: incidents[0].headline,
+        verdict: incidents[0].verdict,
+        response: incidents[0].response,
+      },
+      pagesVerified: ["Mission Control", "Investigation", "Response Ops", "Asset Fleet", "System Health"],
+      graph: { nodes: graph.nodes.length, edges: graph.edges.length },
+      health,
+    });
   });
 
   it("renders stable empty states when the API has no incidents", async () => {
@@ -209,6 +230,11 @@ describe("AutoSentry dashboard", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Response Ops" }));
     expect(await screen.findByText("No response actions have been planned or executed yet.")).toBeTruthy();
+    demo("Frontend dashboard empty states", {
+      incidentStream: "No incidents match the current filter.",
+      assets: "No managed assets are available yet.",
+      responses: "No response actions have been planned or executed yet.",
+    });
   });
 
   it("keeps the shell visible when API calls fail", async () => {
@@ -220,6 +246,11 @@ describe("AutoSentry dashboard", () => {
     await waitFor(() => expect(errorSpy).toHaveBeenCalled());
     expect(screen.getAllByText("AutoSentry").length).toBeGreaterThan(0);
     expect(screen.getByText("Incident Stream")).toBeTruthy();
+    demo("Frontend dashboard API failure handling", {
+      apiError: "offline",
+      shellStillVisible: true,
+      visibleSections: ["AutoSentry", "Incident Stream"],
+    });
 
     errorSpy.mockRestore();
   });

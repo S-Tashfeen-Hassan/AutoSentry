@@ -38,7 +38,7 @@ def _event(short_circuit=None, signature="SURICATA SSH invalid banner", features
     }
 
 
-def test_detection_short_circuits_and_cache_hit():
+def test_detection_short_circuits_and_cache_hit(demo_output):
     agent = DetectionAgent()
     benign = agent.analyze(_event(short_circuit="benign", fingerprint="benign-fp"))
     cached = agent.analyze(_event(short_circuit="benign", fingerprint="benign-fp"))
@@ -48,9 +48,21 @@ def test_detection_short_circuits_and_cache_hit():
     assert cached["trace_hint"] == "cache_hit"
     assert malicious["verdict"] == "malicious"
     assert malicious["recommended_action"] == "block_source_ip_on_firewall"
+    demo_output(
+        "Detection short-circuit and cache behavior",
+        {
+            "benign": {"verdict": benign["verdict"], "method": benign["method"], "score": benign["score"]},
+            "cached_trace_hint": cached["trace_hint"],
+            "malicious": {
+                "verdict": malicious["verdict"],
+                "method": malicious["method"],
+                "recommended_action": malicious["recommended_action"],
+            },
+        },
+    )
 
 
-def test_detection_hybrid_bands():
+def test_detection_hybrid_bands(demo_output):
     agent = DetectionAgent()
 
     benign = agent.analyze(
@@ -69,9 +81,21 @@ def test_detection_hybrid_bands():
 
     assert benign["verdict"] == "benign"
     assert malicious["verdict"] == "malicious"
+    demo_output(
+        "Hybrid detection bands",
+        {
+            "benign": {"verdict": benign["verdict"], "score": benign["score"], "confidence": benign["confidence"]},
+            "malicious": {
+                "verdict": malicious["verdict"],
+                "score": malicious["score"],
+                "confidence": malicious["confidence"],
+                "evidence": malicious["evidence"],
+            },
+        },
+    )
 
 
-def test_detection_llm_enrichment_is_mocked(monkeypatch):
+def test_detection_llm_enrichment_is_mocked(monkeypatch, demo_output):
     monkeypatch.setattr(detection_runtime, "ENABLE_LLM_ESCALATION", True)
     monkeypatch.setattr(detection_runtime, "DETECTION_LLM_BAND_LOW", 0.0)
     monkeypatch.setattr(detection_runtime, "DETECTION_LLM_BAND_HIGH", 1.0)
@@ -84,3 +108,7 @@ def test_detection_llm_enrichment_is_mocked(monkeypatch):
 
     assert result["method"] == "llm"
     assert "Credential abuse suspected" in result["reasons"]
+    demo_output(
+        "LLM enrichment path",
+        {"method": result["method"], "verdict": result["verdict"], "reasons": result["reasons"]},
+    )

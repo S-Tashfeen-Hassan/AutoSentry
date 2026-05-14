@@ -400,7 +400,7 @@ function MissionControl({ overview, selectedIncident, responses, maliciousIncide
         </div>
         <div className="response-list">
           {responses.slice(0, 5).map((response) => (
-            <div key={response.audit_id} className="response-item">
+            <div key={response.audit_id || response.id || `${response.action}-${response.timestamp}`} className="response-item">
               <div className={`response-status ${response.status}`}>{response.status}</div>
               <div>
                 <div className="response-title">{response.action}</div>

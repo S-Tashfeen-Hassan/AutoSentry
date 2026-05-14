@@ -8,6 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:demo": "AUTOSENTRY_DEMO_TEST_OUTPUT=1 vitest run --reporter verbose",
     "preview": "vite preview"
   },
   "dependencies": {
