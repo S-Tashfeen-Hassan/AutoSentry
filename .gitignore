@@ -9,3 +9,4 @@ node_modules
 .log*
 .codex
 .agentsdata/traces.ndjson
+data/traces.ndjson
