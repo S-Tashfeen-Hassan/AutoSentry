@@ -1,0 +1,31 @@
+[
+  {
+    "asset_id": "edge-firewall",
+    "hostname": "AutoSentry Edge Firewall",
+    "ip": "192.168.56.1",
+    "asset_owner": "soc",
+    "os_type": "windows",
+    "criticality": "critical",
+    "allowed_actions": [
+      "block_source_ip_on_firewall",
+      "notify_operator",
+      "collect_artifacts"
+    ],
+    "remote_executor_type": "local_powershell"
+  },
+  {
+    "asset_id": "graylog-node",
+    "hostname": "Graylog Platform",
+    "ip": "192.168.56.10",
+    "asset_owner": "platform",
+    "os_type": "linux",
+    "criticality": "high",
+    "allowed_actions": [
+      "block_source_ip_on_host",
+      "quarantine_managed_endpoint",
+      "collect_artifacts",
+      "notify_operator"
+    ],
+    "remote_executor_type": "ssh"
+  }
+]

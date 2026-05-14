@@ -1,0 +1,19 @@
+
+> frontend@0.0.0 preview
+> vite preview --host 0.0.0.0 --port 4173
+
+[31mfailed to load config from D:\fyp\fyp2\AutoSentry\frontend\frontend\vite.config.js[39m
+[31merror when starting preview server:
+Error: spawn EPERM
+    at ChildProcess.spawn (node:internal/child_process:420:11)
+    at Object.spawn (node:child_process:754:9)
+    at ensureServiceIsRunning (D:\fyp\fyp2\AutoSentry\frontend\frontend\node_modules\esbuild\lib\main.js:1978:29)
+    at build (D:\fyp\fyp2\AutoSentry\frontend\frontend\node_modules\esbuild\lib\main.js:1876:26)
+    at bundleConfigFile (file:///D:/fyp/fyp2/AutoSentry/frontend/frontend/node_modules/vite/dist/node/chunks/config.js:35800:23)
+    at bundleAndLoadConfigFile (file:///D:/fyp/fyp2/AutoSentry/frontend/frontend/node_modules/vite/dist/node/chunks/config.js:35787:24)
+    at loadConfigFromFile (file:///D:/fyp/fyp2/AutoSentry/frontend/frontend/node_modules/vite/dist/node/chunks/config.js:35756:179)
+    at resolveConfig (file:///D:/fyp/fyp2/AutoSentry/frontend/frontend/node_modules/vite/dist/node/chunks/config.js:35405:28)
+    at preview (file:///D:/fyp/fyp2/AutoSentry/frontend/frontend/node_modules/vite/dist/node/chunks/config.js:35058:25)
+    at CAC.<anonymous> (file:///D:/fyp/fyp2/AutoSentry/frontend/frontend/node_modules/vite/dist/node/cli.js:669:24)[39m
+
+D:\fyp\fyp2\AutoSentry\frontend\frontend>

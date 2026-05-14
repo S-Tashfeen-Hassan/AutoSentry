@@ -1,20 +1,41 @@
-# utils/db_logger.py
+from __future__ import annotations
+
 import json
-from datetime import datetime
 from pathlib import Path
+from typing import Dict, List
 
-DATA_DIR = Path("data")
-DATA_DIR.mkdir(exist_ok=True)
+from .config import ACTION_LOG_PATH, TRACE_LOG_PATH
+from .schema import utc_now_iso
 
-def append_jsonl(filename: str, obj: dict):
-    p = DATA_DIR / filename
-    with open(p, "a", encoding="utf-8") as f:
-        f.write(json.dumps(obj, default=str) + "\n")
 
-def log_trace(trace: dict):
-    trace["logged_at"] = datetime.utcnow().isoformat() + "Z"
-    append_jsonl("traces.log", trace)
+def append_jsonl(path: Path, obj: Dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(obj, default=str) + "\n")
 
-def log_action(action: dict):
-    action["logged_at"] = datetime.utcnow().isoformat() + "Z"
-    append_jsonl("actions.log", action)
+
+def log_trace(trace: Dict) -> None:
+    trace.setdefault("trace_metadata", {})
+    trace["trace_metadata"]["logged_at"] = utc_now_iso()
+    append_jsonl(TRACE_LOG_PATH, trace)
+
+
+def log_action(action: Dict) -> None:
+    action["logged_at"] = utc_now_iso()
+    append_jsonl(ACTION_LOG_PATH, action)
+
+
+def read_jsonl(path: Path) -> List[Dict]:
+    if not path.exists():
+        return []
+    rows: List[Dict] = []
+    with path.open("r", encoding="utf-8") as handle:
+        for line in handle:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rows.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+    return rows

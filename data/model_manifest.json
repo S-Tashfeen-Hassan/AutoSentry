@@ -1,0 +1,5 @@
+{
+  "feature_version": "autosentry-feature-v2",
+  "detector_backend": "autosentry-hybrid-v2",
+  "notes": "Demo manifest used to keep the preprocessor and detector contract aligned."
+}
