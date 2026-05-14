@@ -6,7 +6,7 @@ import "@xyflow/react/dist/style.css";
 
 function transform(nodes, edges) {
   // convert our simple nodes/edges format to react-flow format
-  const rfNodes = nodes.map((n, i) => ({
+  const rfNodes = nodes.map((n) => ({
     id: n.id,
     data: { label: n.label },
     position: { x: Math.random() * 600, y: Math.random() * 400 },
@@ -47,9 +47,12 @@ export default function CorrelationGraph() {
   }, []);
 
   useEffect(() => {
-    fetchGraph();
+    const timeoutId = setTimeout(fetchGraph, 0);
     const id = setInterval(fetchGraph, 5000);
-    return () => clearInterval(id);
+    return () => {
+      clearTimeout(timeoutId);
+      clearInterval(id);
+    };
   }, [fetchGraph]);
 
   return (

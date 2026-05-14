@@ -310,7 +310,7 @@ function CriticalThreats({ incidents, onSelect }) {
   );
 }
 
-function MissionControl({ overview, incidents, selectedIncident, responses, maliciousIncidents, onSelect }) {
+function MissionControl({ overview, selectedIncident, responses, maliciousIncidents, onSelect }) {
   const pieData = [
     { name: "Malicious", value: overview?.malicious || 0 },
     { name: "Suspicious", value: overview?.suspicious || 0 },
@@ -496,8 +496,8 @@ function ResponseOps({ responses }) {
           </div>
         </div>
         <div className="table-list">
-          {responses.map((response) => (
-            <div key={response.audit_id} className="table-row">
+          {responses.length ? responses.map((response) => (
+            <div key={response.audit_id || response.id || `${response.action}-${response.timestamp}`} className="table-row">
               <div>
                 <div className="table-title">{response.action}</div>
                 <div className="table-subtitle">{response.targetAsset || "No target asset"}</div>
@@ -506,7 +506,9 @@ function ResponseOps({ responses }) {
               <div>{response.mode}</div>
               <div className={`response-status ${response.status}`}>{response.status}</div>
             </div>
-          ))}
+          )) : (
+            <div className="empty-state compact-empty">No response actions have been planned or executed yet.</div>
+          )}
         </div>
       </section>
       <section className="panel chart-panel">
@@ -536,6 +538,10 @@ function ResponseOps({ responses }) {
 }
 
 function AssetFleet({ assets }) {
+  if (!assets.length) {
+    return <div className="empty-state">No managed assets are available yet.</div>;
+  }
+
   return (
     <div className="asset-grid">
       {assets.map((asset) => (
@@ -741,7 +747,6 @@ export default function App() {
             {page === "mission" && (
             <MissionControl
               overview={overview}
-              incidents={incidents}
               selectedIncident={selectedIncident}
               responses={responses}
               maliciousIncidents={maliciousThreats}

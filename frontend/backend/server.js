@@ -300,8 +300,8 @@ app.use(cors());
 app.use(express.json());
 
 const ROOT = path.join(__dirname, "..", "..");
-const TRACE_PATH = path.join(ROOT, "data", "traces.ndjson");
-const ASSET_PATH = path.join(ROOT, "data", "managed_assets.json");
+const TRACE_PATH = process.env.AUTOSENTRY_TRACE_LOG_PATH || path.join(ROOT, "data", "traces.ndjson");
+const ASSET_PATH = process.env.AUTOSENTRY_ASSET_INVENTORY_PATH || path.join(ROOT, "data", "managed_assets.json");
 
 const TRACE_CACHE_LIMIT = Number(process.env.AUTOSENTRY_API_TRACE_CACHE_LIMIT || 5000);
 const TAIL_READ_CHUNK_BYTES = 1024 * 1024;
@@ -316,6 +316,16 @@ let traceFileSize = 0;
 let traceFileMtimeMs = 0;
 
 let assetCache = { mtimeMs: 0, rows: [] };
+
+function resetCachesForTests() {
+  traceCache = [];
+  traceOffset = 0;
+  tracePartialLine = "";
+  traceInitialized = false;
+  traceFileSize = 0;
+  traceFileMtimeMs = 0;
+  assetCache = { mtimeMs: 0, rows: [] };
+}
 
 function parseJsonLine(line) {
   const trimmed = line.trim();
@@ -790,8 +800,21 @@ app.get("/api/graph", (req, res) => {
 
 /* ================= SERVER ================= */
 
-const PORT = process.env.PORT || 5000;
+if (require.main === module) {
+  const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-  console.log(`AutoSentry backend running at http://localhost:${PORT}`);
-});
+  app.listen(PORT, () => {
+    console.log(`AutoSentry backend running at http://localhost:${PORT}`);
+  });
+}
+
+module.exports = {
+  app,
+  resetCachesForTests,
+  parseJsonLine,
+  formatIncident,
+  buildOverview,
+  buildGraph,
+  buildAssetFleet,
+  buildHealth,
+};

@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --test"
   },
   "keywords": [],
   "author": "",
@@ -13,5 +13,8 @@
     "cors": "^2.8.5",
     "express": "^5.2.1",
     "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "supertest": "^7.1.4"
   }
 }

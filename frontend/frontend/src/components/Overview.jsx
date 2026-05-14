@@ -3,7 +3,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis
 
 const COLORS = ["#ff4b4b", "#FFD700", "#00cc66", "#999999"];
 
-export default function Overview({ stats, recentLogs }) {
+export default function Overview({ stats }) {
   if (!stats) return <div className="panel">Loading overview...</div>;
 
   const pieData = [

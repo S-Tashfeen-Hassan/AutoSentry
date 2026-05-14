@@ -1,11 +1,51 @@
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
+import json
 
 from core.graph import AgentGraph
+import utils.asset_inventory as inventory
+import utils.db_logger as db_logger
 
 
 class PipelineTests(unittest.TestCase):
     def setUp(self):
+        self._tmp = TemporaryDirectory()
+        root = Path(self._tmp.name)
+        self._old_asset_path = inventory.ASSET_INVENTORY_PATH
+        self._old_trace_path = db_logger.TRACE_LOG_PATH
+        self._old_action_path = db_logger.ACTION_LOG_PATH
+
+        asset_path = root / "managed_assets.json"
+        asset_path.write_text(
+            json.dumps(
+                [
+                    {
+                        "asset_id": "edge-firewall",
+                        "hostname": "edge-firewall",
+                        "ip": "192.168.56.1",
+                        "asset_owner": "network",
+                        "os_type": "linux",
+                        "criticality": "critical",
+                        "allowed_actions": ["block_source_ip_on_firewall", "notify_operator"],
+                        "remote_executor_type": "ssh",
+                    }
+                ]
+            ),
+            encoding="utf-8",
+        )
+        inventory.ASSET_INVENTORY_PATH = asset_path
+        inventory.load_assets.cache_clear()
+        db_logger.TRACE_LOG_PATH = root / "traces.ndjson"
+        db_logger.ACTION_LOG_PATH = root / "actions.log"
         self.graph = AgentGraph()
+
+    def tearDown(self):
+        inventory.ASSET_INVENTORY_PATH = self._old_asset_path
+        inventory.load_assets.cache_clear()
+        db_logger.TRACE_LOG_PATH = self._old_trace_path
+        db_logger.ACTION_LOG_PATH = self._old_action_path
+        self._tmp.cleanup()
 
     def test_benign_management_event_short_circuits(self):
         event = {

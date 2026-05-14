@@ -1,7 +1,7 @@
 import React from "react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
-export default function Timeline({ stats, recentLogs }) {
+export default function Timeline({ stats }) {
   if (!stats) return <div className="panel">Loading timeline...</div>;
 
   const data = (stats.trend || []).map(b => ({
